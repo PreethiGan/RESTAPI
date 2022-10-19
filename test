@@ -1,0 +1,91 @@
+class Program
+{
+    string clientId = "a1s2d3f4g4h5j6k7l8m9n1b2v3c4";
+    string clientSecret = "z1x2c3v4b4n5m6l1k2j3h4g5f6d7s8";
+    string apikey = "o1i2u3y4t5r6e7w8q9a1s2d3f4g5h6j6k7l8";
+    string createNewUserJson;
+    string searchUserJson;
+    string accessToken;
+    EmployeeRegisterationResponse registerUserResponse = null;
+    EmployeeSearchResponse empSearchResponse = null;
+    GetSecurityQuestionsResponse getSecurityQueResponse = null;
+    GetCountryNamesResponse getCountryResponse = null;
+}
+
+static void Main(string[] args)
+{
+    Program prm = new Program();
+    prm.InvokeMethod();
+}
+
+public async void InvokeMethod()
+{
+    Task<string> getAccessToken = GenerateAccessToken();
+    accessToken = await getAccessToken;
+
+    Task<EmployeeRegisterationResponse> registerResponse = EmployeeRegistration(accessToken);
+    registerUserResponse = await registerResponse;
+
+    Task<EmployeeSearchResponse> employeeSearchResponse = EmployeeSearch(accessToken);
+    empSearchResponse = await employeeSearchResponse;
+
+    Task<GetSecurityQuestionsResponse> getSecurityResponse = GetSecretQuestions(accessToken);
+    getSecurityQueResponse = await getSecurityResponse;
+
+    Task<GetCountryNamesResponse> getCountryNamesResponse = GetCountryNames(accessToken);
+    getCountryResponse = await getCountryNamesResponse;
+}
+
+public async Task<string> GenerateAccessToken()
+{
+    AccessTokenResponse token = null;
+
+    try
+    {
+        HttpClient client = HeadersForAccessTokenGenerate();
+        string body = "grant_type=client_credentials&scope=public";
+        client.BaseAddress = new Uri(accessTokenURL);
+        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, client.BaseAddress);
+        request.Content = new StringContent(body,
+                                            Encoding.UTF8,
+                                            "application/x-www-form-urlencoded");//CONTENT-TYPE header
+
+        List<KeyValuePair<string, string>> postData = new List<KeyValuePair<string, string>>();
+
+        postData.Add(new KeyValuePair<string, string>("grant_type", "client_credentials"));
+        postData.Add(new KeyValuePair<string, string>("scope", "public"));
+
+        request.Content = new FormUrlEncodedContent(postData);
+        HttpResponseMessage tokenResponse = client.PostAsync(baseUrl, new FormUrlEncodedContent(postData)).Result;
+
+        //var token = tokenResponse.Content.ReadAsStringAsync().Result;
+        token = await tokenResponse.Content.ReadAsAsync<AccessTokenResponse>(new[] { new JsonMediaTypeFormatter() });
+    }
+    catch (HttpRequestException ex)
+    {
+        throw ex;
+    }
+    return token != null ? token.AccessToken : null;
+
+}
+
+private HttpClient HeadersForAccessTokenGenerate()
+{
+    HttpClientHandler handler = new HttpClientHandler() { UseDefaultCredentials = false };
+    HttpClient client = new HttpClient(handler);
+    try
+    {
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Accept.Clear();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-www-form-urlencoded"));
+        client.DefaultRequestHeaders.Add("apikey", apikey);
+        client.DefaultRequestHeaders.Add("Authorization", "Basic " + Convert.ToBase64String(
+                 System.Text.ASCIIEncoding.ASCII.GetBytes(
+                    $"{clientId}:{clientSecret}")));
+    }
+    catch (Exception ex)
+    {
+        throw ex;
+    }
+    return client;
+}
